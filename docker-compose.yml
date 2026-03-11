@@ -88,6 +88,16 @@ services:
   #        LISTEN_HOST / "host", Same as -h
   #      - LISTEN_HOST=::
   #      - LISTEN_HOST=0.0.0.0
+  #
+  #        Password protection - set a plaintext password for login (user-friendly option for Docker deployments)
+  #        When set, this password will be required to access the web interface.
+  #        This is the recommended way to set password protection when running in Docker.
+  #      - CHANGEDETECTION_PASSWORD=your_secret_password
+  #
+  #        Alternative: Pre-hashed password (PBKDF2 with SHA256) for password protection
+  #        Use this if you need the password to never be in plaintext. Generate using:
+  #        python3 -c "import base64, hashlib, os; s=os.urandom(32); k=hashlib.pbkdf2_hmac('sha256', b'your_password', s, 100000); print(base64.b64encode(s+k).decode())"
+  #      - SALTED_PASS=<base64_encoded_salt_and_hash>
 
   
       # Comment out ports: when using behind a reverse proxy , enable networks: etc.

@@ -48,7 +48,7 @@ def render_form(watch, datastore, request, url_for, render_template, flash, redi
         is_html_webdriver = True
 
     password_enabled_and_share_is_off = False
-    if datastore.data['settings']['application'].get('password') or os.getenv("SALTED_PASS", False):
+    if datastore.data['settings']['application'].get('password') or os.getenv("SALTED_PASS", False) or os.getenv("CHANGEDETECTION_PASSWORD"):
         password_enabled_and_share_is_off = not datastore.data['settings']['application'].get('shared_diff_access')
 
     # Use the shared default template from processors/templates/

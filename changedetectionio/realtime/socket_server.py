@@ -294,7 +294,7 @@ def init_socketio(app, datastore):
         #        logger.info(f"Socket.IO: Current user authenticated: {current_user.is_authenticated if hasattr(current_user, 'is_authenticated') else 'No current_user'}")
 
         # Check if authentication is required and user is not authenticated
-        has_password_enabled = datastore.data['settings']['application'].get('password') or os.getenv("SALTED_PASS", False)
+        has_password_enabled = datastore.data['settings']['application'].get('password') or os.getenv("SALTED_PASS", False) or os.getenv("CHANGEDETECTION_PASSWORD")
         #        logger.info(f"Socket.IO: Password enabled: {has_password_enabled}")
         if has_password_enabled and not current_user.is_authenticated:
             logger.warning("Socket.IO: Rejecting unauthenticated connection")

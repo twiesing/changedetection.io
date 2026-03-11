@@ -432,6 +432,14 @@ class User(flask_login.UserMixin):
     def check_password(self, password):
         import base64
         import hashlib
+        import hmac
+
+        # Check for plaintext password from environment variable first
+        # This is the user-friendly option for Docker deployments
+        plaintext_pass = os.getenv("CHANGEDETECTION_PASSWORD")
+        if plaintext_pass:
+            # Use constant-time comparison to prevent timing attacks
+            return hmac.compare_digest(password, plaintext_pass)
 
         # Can be stored in env (for deployments) or in the general configs
         raw_salt_pass = os.getenv("SALTED_PASS", False)
@@ -520,7 +528,7 @@ def changedetection_app(config=None, datastore_o=None):
     # Set up a request hook to check authentication for all routes
     @app.before_request
     def check_authentication():
-        has_password_enabled = datastore.data['settings']['application'].get('password') or os.getenv("SALTED_PASS", False)
+        has_password_enabled = datastore.data['settings']['application'].get('password') or os.getenv("SALTED_PASS", False) or os.getenv("CHANGEDETECTION_PASSWORD")
 
         if has_password_enabled and not flask_login.current_user.is_authenticated:
             # Permitted
