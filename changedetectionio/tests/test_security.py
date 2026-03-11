@@ -872,8 +872,10 @@ def test_changedetection_password_hides_remove_password_button(client, live_serv
     # Check settings page - remove password button should be hidden
     res = client.get(url_for("settings.settings_page"))
     assert res.status_code == 200
-    # The remove password button should not be shown when password is set via env var
-    assert b'removepassword_button' not in res.data or b'hidden' in res.data or b'disabled' in res.data
+    # When CHANGEDETECTION_PASSWORD env var is set, the remove password button should NOT be rendered
+    # (the template uses "{% if not hide_remove_pass %}" to conditionally render it)
+    assert b'Remove password' not in res.data, \
+        "Remove password button should be hidden when CHANGEDETECTION_PASSWORD env var is set"
 
     # Cleanup
     monkeypatch.delenv("CHANGEDETECTION_PASSWORD")
