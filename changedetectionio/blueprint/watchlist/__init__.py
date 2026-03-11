@@ -94,7 +94,7 @@ def construct_blueprint(datastore: ChangeDetectionStore, update_q, queuedWatchMe
             generate_tag_colors=processors.generate_processor_badge_colors,
             guid=datastore.data['app_guid'],
             has_proxies=proxy_list,
-            hosted_sticky=os.getenv("SALTED_PASS", False) == False,
+            hosted_sticky=os.getenv("SALTED_PASS", False) == False and not os.getenv("CHANGEDETECTION_PASSWORD"),
             now_time_server=round(time.time()),
             pagination=pagination,
             processor_badge_css=processors.get_processor_badge_css(),

@@ -744,3 +744,136 @@ def test_unresolvable_hostname_is_allowed(client, live_server, monkeypatch):
     res = client.get(url_for('watchlist.index'))
     assert b'this-host-does-not-exist-xyz987.invalid' in res.data, \
         "Unresolvable hostname watch should appear in the watch overview list"
+
+
+def test_plaintext_password_env_var(client, live_server, monkeypatch, measure_memory_usage, datastore_path):
+    """
+    Test that CHANGEDETECTION_PASSWORD environment variable works for authentication.
+    This is the user-friendly way to set a password via Docker without pre-hashing.
+    """
+    from flask import url_for
+
+    # Test 1: Without password, should be able to access watchlist
+    res = client.get(url_for("watchlist.index"), follow_redirects=True)
+    assert res.status_code == 200
+
+    # Test 2: Set CHANGEDETECTION_PASSWORD environment variable
+    test_password = "my_test_password_123"
+    monkeypatch.setenv("CHANGEDETECTION_PASSWORD", test_password)
+
+    # Now should require login
+    res = client.get(url_for("watchlist.index"), follow_redirects=False)
+    # Should redirect to login
+    assert res.status_code in [302, 303] or b"Password" in res.data
+
+    # Follow redirect to login page
+    res = client.get(url_for("watchlist.index"), follow_redirects=True)
+    assert b"Password" in res.data or b"password" in res.data
+
+    # Test 3: Login with wrong password should fail
+    res = client.post(
+        url_for("login"),
+        data={"password": "wrong_password"},
+        follow_redirects=True
+    )
+    assert b"Incorrect password" in res.data
+
+    # Test 4: Login with correct password should succeed
+    res = client.post(
+        url_for("login"),
+        data={"password": test_password},
+        follow_redirects=True
+    )
+    assert res.status_code == 200
+    # Should be on watchlist page now
+    assert b"Password" not in res.data or b"Already logged in" in res.data
+
+    # Test 5: Should now be able to access protected pages
+    res = client.get(url_for("settings.settings_page"), follow_redirects=True)
+    assert res.status_code == 200
+
+    # Test 6: Logout
+    client.get(url_for("logout"))
+
+    # Test 7: After logout, should need to login again
+    res = client.get(url_for("watchlist.index"), follow_redirects=True)
+    assert b"Password" in res.data or b"password" in res.data
+
+    # Test 8: Cleanup - remove env var
+    monkeypatch.delenv("CHANGEDETECTION_PASSWORD")
+
+    # Now should be able to access without login again
+    res = client.get(url_for("watchlist.index"), follow_redirects=True)
+    assert res.status_code == 200
+
+
+def test_plaintext_password_takes_precedence_over_datastore_password(client, live_server, monkeypatch, measure_memory_usage, datastore_path):
+    """
+    Test that CHANGEDETECTION_PASSWORD env var takes precedence over datastore password.
+    When both are set, the env var password should be used.
+    """
+    from flask import url_for
+    import base64
+    import hashlib
+
+    # Set up a password in the datastore
+    datastore_password = "datastore_password"
+    salt = os.urandom(32)
+    key = hashlib.pbkdf2_hmac('sha256', datastore_password.encode('utf-8'), salt, 100000)
+    salted_pass = base64.b64encode(salt + key).decode('ascii')
+    client.application.config['DATASTORE'].data['settings']['application']['password'] = salted_pass
+
+    # Also set CHANGEDETECTION_PASSWORD env var
+    env_password = "env_password"
+    monkeypatch.setenv("CHANGEDETECTION_PASSWORD", env_password)
+
+    # Datastore password should NOT work
+    res = client.post(
+        url_for("login"),
+        data={"password": datastore_password},
+        follow_redirects=True
+    )
+    assert b"Incorrect password" in res.data
+
+    # Env var password SHOULD work
+    res = client.post(
+        url_for("login"),
+        data={"password": env_password},
+        follow_redirects=True
+    )
+    assert res.status_code == 200
+    # Should be logged in
+    assert b"Incorrect password" not in res.data
+
+    # Cleanup
+    monkeypatch.delenv("CHANGEDETECTION_PASSWORD")
+    del client.application.config['DATASTORE'].data['settings']['application']['password']
+
+
+def test_changedetection_password_hides_remove_password_button(client, live_server, monkeypatch, measure_memory_usage, datastore_path):
+    """
+    Test that when CHANGEDETECTION_PASSWORD is set, the remove password button is hidden
+    in the settings page (similar to SALTED_PASS behavior).
+    """
+    from flask import url_for
+
+    # Set CHANGEDETECTION_PASSWORD env var and login
+    test_password = "test_password"
+    monkeypatch.setenv("CHANGEDETECTION_PASSWORD", test_password)
+
+    # Login
+    res = client.post(
+        url_for("login"),
+        data={"password": test_password},
+        follow_redirects=True
+    )
+    assert res.status_code == 200
+
+    # Check settings page - remove password button should be hidden
+    res = client.get(url_for("settings.settings_page"))
+    assert res.status_code == 200
+    # The remove password button should not be shown when password is set via env var
+    assert b'removepassword_button' not in res.data or b'hidden' in res.data or b'disabled' in res.data
+
+    # Cleanup
+    monkeypatch.delenv("CHANGEDETECTION_PASSWORD")

@@ -17,7 +17,7 @@ def login_optionally_required(func):
 
         # Access datastore through the app config
         datastore = current_app.config['DATASTORE']
-        has_password_enabled = datastore.data['settings']['application'].get('password') or os.getenv("SALTED_PASS", False)
+        has_password_enabled = datastore.data['settings']['application'].get('password') or os.getenv("SALTED_PASS", False) or os.getenv("CHANGEDETECTION_PASSWORD")
 
         # Permitted
         if request.endpoint and 'diff_history_page' in request.endpoint and datastore.data['settings']['application'].get('shared_diff_access'):

@@ -59,8 +59,8 @@ def construct_blueprint(datastore: ChangeDetectionStore):
         if request.method == 'POST':
             # Password unset is a GET, but we can lock the session to a salted env password to always need the password
             if form.application.form.data.get('removepassword_button', False):
-                # SALTED_PASS means the password is "locked" to what we set in the Env var
-                if not os.getenv("SALTED_PASS", False):
+                # SALTED_PASS or CHANGEDETECTION_PASSWORD means the password is "locked" to what we set in the Env var
+                if not os.getenv("SALTED_PASS", False) and not os.getenv("CHANGEDETECTION_PASSWORD"):
                     datastore.remove_password()
                     flash(gettext("Password protection removed."), 'notice')
                     flask_login.logout_user()
@@ -113,7 +113,7 @@ def construct_blueprint(datastore: ChangeDetectionStore):
                     elif result['status'] == 'error':
                         flash(gettext("Error adjusting workers: {}").format(result['message']), 'error')
 
-                if not os.getenv("SALTED_PASS", False) and len(form.application.form.password.encrypted_password):
+                if not os.getenv("SALTED_PASS", False) and not os.getenv("CHANGEDETECTION_PASSWORD") and len(form.application.form.password.encrypted_password):
                     datastore.data['settings']['application']['password'] = form.application.form.password.encrypted_password
                     datastore.commit()
                     flash(gettext("Password protection enabled."), 'notice')
@@ -173,7 +173,7 @@ def construct_blueprint(datastore: ChangeDetectionStore):
                                 emailprefix=os.getenv('NOTIFICATION_MAIL_BUTTON_PREFIX', False),
                                 extra_notification_token_placeholder_info=datastore.get_unique_notification_token_placeholders_available(),
                                 form=form,
-                                hide_remove_pass=os.getenv("SALTED_PASS", False),
+                                hide_remove_pass=os.getenv("SALTED_PASS", False) or os.getenv("CHANGEDETECTION_PASSWORD"),
                                 min_system_recheck_seconds=int(os.getenv('MINIMUM_SECONDS_RECHECK_TIME', 3)),
                                 settings_application=datastore.data['settings']['application'],
                                 timezone_default_config=datastore.data['settings']['application'].get('scheduler_timezone_default'),
